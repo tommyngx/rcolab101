@@ -1,0 +1,255 @@
+---
+title: "AI trong phân tích dữ liệu với R - Viện Phương Nam (6-11/1/2026)"
+author: "Thach Tran"
+date: "2025-12-29"
+output: html_document
+---
+
+# Ngày 2: Hồi qui tuyến tính
+
+## Việc 1. Đọc dữ liệu vào R
+
+```{r}
+ob = read.csv("C:\\Thach\\VN trips\\2026_1Jan\\PN Institute\\Datasets\\Obesity data.csv")
+dim(ob)
+head(ob)
+
+```
+
+## Việc 2. So sánh tỉ trọng mỡ giữa nam và nữ
+
+### 2.1 Vẽ biểu đồ histogram đánh giá phân bố mật độ xương
+
+```{r}
+library(lessR)
+
+Histogram(pcfat,
+          data = ob,
+          fill = "blue",
+          xlab = "Tỉ trọng mỡ (%)",
+          ylab = "Số người",
+          main = "Phân bố tỉ trọng mỡ")
+
+```
+
+### 2.2 So sánh tỉ trọng mỡ giữa nam và nữ bằng t-test
+
+```{r}
+library(table1)
+table1(~ pcfat | gender, data = ob)
+ttest(pcfat ~ gender, data = ob)
+
+```
+
+### 2.3 So sánh tỉ trọng mỡ giữa nam và nữ bằng hồi qui tuyến tính
+
+#### Xây dựng mô hình tuyến tính
+
+```{r}
+# Cách 1:
+model <- lm(pcfat ~ gender, data = ob)
+summary(model)
+
+# Cách 2:
+Regression(pcfat ~ gender, data = ob, graphics = TRUE)
+
+```
+
+#### Kiểm tra giả định
+
+```{r}
+par(mfrow = c(2, 2))
+plot(model)
+
+```
+
+#### Mô hình: pcfat = 24.67 - 10.52*genderM
+
+#### Diễn giải kết quả
+
+### Việc 2.4 Sử dụng chatGPT
+PROMPT: Tôi có dữ liệu 'df' gồm 11 biến số trong đó có tỉ trọng mỡ 'pcfat' và giới tính 'gender'. Bạn giúp viết lệnh R để (i) xây dựng mô hình hổi qui tuyến tính để so sánh tỉ trọng mỡ (pcfat) giữa nam và nữ (gender), và (ii) kiểm tra giả định của mô hình bằng biểu đồ 
+
+## Việc 3. Đánh giá mối liên quan giữa cân  nặng và tỉ trọng mỡ
+
+### 3.1 Vẽ biểu đồ tán xạ
+
+```{r}
+Plot(pcfat, weight, data = ob, fit = "lm",
+     main = "Mối liên hệ giữa cân nặng và tỉ trọng mỡ",
+     xlab = "Cân nặng (kg)",
+     ylab = "Tỉ trọng mỡ (%)")
+
+```
+
+### 3.2 Đánh giá mối liên quan giữa cân nặng và tỉ trọng mỡ
+
+#### Xây dựng mô hình hồi qui tuyến tính
+
+```{r}
+# Cách 1: 
+model <- lm(pcfat ~ weight, data = ob)
+par(mfrow = c(2, 2))
+plot(model)
+summary(model)
+
+# Cách 2:
+Regression(pcfat ~ weight, data = ob, graphics = TRUE)
+
+```
+
+#### Mô hình: pcfat = 29.2 + 0.04*weight
+
+### 3.3 ChatGPT
+PROMPT: Bạn viết lệnh R xây dựng mô hình tuyến tính đánh giá mối liên quan giữa cân nặng (weight) và tỉ trọng mỡ (pcfat)
+
+## Việc 4. Đánh giá mối liên quan độc lập giữa cân nặng và tỉ trọng mỡ
+
+### 4.1 Xây dựng và kiểm tra giả định mô hình
+
+```{r}
+# Cách 1:
+model_adj <- lm(pcfat ~ weight + gender + age + height, data = ob)
+par(mfrow = c(2, 2))
+plot(model_adj)
+summary(model_adj)
+
+# Cách 2:
+Regression(pcfat ~ weight + gender + age + height, data = ob, graphics = TRUE)
+
+```
+
+### 4.2 Viết phương trình
+pcfat = 48.4 + 0.4*weight + 0.06*age - 11.5*genderM - 0.3*height
+
+### 4.3 Diễn giải kết quả
+
+### 4.4 ChatGPT
+PROMPT: Qua y văn bạn xác định các yếu tố có thể gây nhiễu (confounder) mối liên quan giữa cân nặng và tỉ trong mỡ là giới tính, tuổi, và chiều cao. Hãy xây dựng mô hình đa biến đánh giá mối liên quan độc lập giữa cân nặng và tỉ trọng mỡ sau khi hiệu chỉnh cho các yếu tố gây nhiễu. 
+
+## Việc 5. Đánh giá thu nhập theo thời gian
+
+### 5.1 Tạo dữ liệu 'vn'
+
+```{r}
+library(gapminder)
+vn = subset(gapminder, country=="Vietnam")
+
+```
+
+### 5.2 Mô tả thay đổi của thu nhập theo thời gian của người VN
+
+```{r}
+library(ggplot2)
+ggplot(data=vn, aes(x=year, y=gdpPercap)) + geom_point() + geom_smooth()
+
+```
+
+### 5.3 Đánh giá thay đổi của thu nhập theo thời gian
+
+```{r}
+# Tạo ra một điểm knot 
+vn$knot = ifelse(vn$year>1992, 1, 0) 
+vn$diff = vn$year - 1992
+
+# Tao biến tương tác 
+vn$int = vn$diff * vn$knot
+
+# Xây dựng mô hình splines 
+m = lm(gdpPercap ~ year + int, data=vn)
+summary(m)
+
+```
+
+### 5.4 ChatGPT
+PROMPT: tôi tạo dữ liệu 'vn' đánh giá thay đổi thu nhập 'gpdPercap' theo thời gian 'year' (từ 1954 đến 2007) của người Việt Nam từ dữ liệu 'gapminder' của gói lệnh R 'gapminder'. Thu nhập người Việt Nam gia tăng đáng kể từ sau năm 1992 (xem biểu đồ kèm). Bạn giúp viết lệnh R để thực hiện mô hình splines để đánh giá thay đổi thu nhập của người Việt Nam theo thời gian.
+
+## Việc 6. Mô hình đa thức
+
+### 6.1 Đọc dữ liệu 
+
+```{r}
+data("mtcars")
+dim(mtcars)
+head(mtcars)
+summary(mtcars)
+
+```
+
+### 6.2 Biểu đồ mô tả liên quan giữa hiệu quả và động cơ
+
+```{r}
+ggplot(data=mtcars, aes(x=hp, y=mpg)) + geom_point() 
+
+```
+
+### 6.3 Đánh giá mối liên quan giữa hiệu quả và động cơ
+
+#### Mô hình tuyến tính
+
+```{r}
+m1 =  lm(mpg ~ hp, data = mtcars)
+summary(m1)
+library(ggfortify)
+autoplot(m1)
+
+```
+
+#### Mô hình hồi qui đa thức
+
+```{r}
+mtcars$hp2 = mtcars$hp^2
+m2 =  lm(mpg ~ hp + hp2, data = mtcars)
+summary(m2)
+
+mtcars$hp3 = mtcars$hp^3 
+m3 =  lm(mpg ~ hp + hp2 + hp3, data = mtcars)
+summary(m3)
+
+```
+
+#### Mô hình hồi qui được chọn
+
+```{r}
+ggplot(data=mtcars, aes(x=hp, y=mpg)) + geom_point() + 
+geom_smooth(method="lm", formula=y~x+I(x^2))
+
+```
+
+### 6.4 ChatGPT:
+PROMT: Tôi sử dụng dữ liệu 'mtcars' để đánh giá liên quan giữa hiệu quả 'mpg' (miles per gallon) và động cơ 'hp' (horsepower) bằng (i) mô hình tuyến tính, (ii) mô hình bậc 2, và (iii) mô hình bậc 3. Bạn giúp viết lệnh R để (1) xây dựng 3 mô hình này, (2) chọn mô hình tối ưu, và (3) vẽ biểu đồ tán xạ (scatterplot) biểu diễn mối liên quan giữa hiệu quả và động cơ.
+
+## Việc 7. Xây dựng mô hình dự báo tỉ trọng mỡ
+
+### 7.1 Xây dựng mô hình dự báo tối ưu bằng phương pháp BMA
+
+```{r}
+library(BMA)
+X <- ob[, c("gender", "height", "weight", "bmi", "age")]
+Y <- ob$pcfat
+bma_model <- bicreg(x = X, y = Y)
+summary(bma_model)
+
+```
+
+### 7.2 Kiểm tra giả định của mô hình
+
+```{r}
+m.bma = lm(pcfat ~ gender + age + weight + bmi, data = ob)
+par(mfrow = c(2, 2))
+plot(m.bma)
+summary(m.bma)
+
+library(car)
+vif(m.bma)
+
+```
+
+### 7.3 Viết phương trình
+pcfat = 8.0 - 11.4*genderM + 0.05*age + 0.08*weight + 0.89*bmi
+
+### 7.4 ChatGPT
+, c("gender", "height", "weight", "bmi", "age")]
+PROMPT: Qua y văn bạn xác định các yếu tố có khả năng dự báo tỉ trọng mỡ 'pcfat' là giới tính 'gender', chiều cao 'height', cân nặng 'weight', chỉ số khối 'bmi' và tuổi 'age'. Bạn viết lệnh để tìm mô hình tối ưu dự báo tỉ trọng mỡ bằng phương pháp Bayesian Model Averaging bằng gói lệnh R 'BMA'.
+
+## Việc 8. Ghi lại tất cả các hàm/lệnh trên và chia sẻ lên tài khoản rpubs (https://rpubs.com/ThachTran/1385070) 
